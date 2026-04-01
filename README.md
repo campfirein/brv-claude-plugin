@@ -1,6 +1,6 @@
 # @byterover/claude-bridge
 
-Native bridge between [ByteRover](https://www.byterover.dev) and [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Enriches Claude's auto-memory with BM25-ranked knowledge from the brv context tree — giving Claude persistent, cross-referenced context that improves over time.
+Native bridge between [ByteRover](https://www.byterover.dev) and [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Enriches Claude's auto-memory with ByteRover's full multi-tier retrieval — BM25 search, importance scoring, performance correlation, and LLM synthesis — giving Claude persistent, cross-referenced context that improves over time.
 
 ## Table of contents
 
@@ -15,7 +15,7 @@ Native bridge between [ByteRover](https://www.byterover.dev) and [Claude Code](h
 
 ## What it does
 
-Claude Code has a built-in auto-memory system — it saves observations across sessions as flat markdown files. ByteRover has a richer context tree with BM25 indexing, importance scoring, and lifecycle management. This bridge connects the two:
+Claude Code has a built-in auto-memory system — it saves observations across sessions as flat markdown files. ByteRover has a richer context tree with multi-tier retrieval: BM25 text search, importance/recency scoring, maturity tier boosting, performance-memory correlation, and LLM-powered synthesis. This bridge connects the two:
 
 1. **Ingesting memories** — when Claude's extraction agent writes a memory file, a hook fires and sends the content to `brv curate`, which enriches it with tags, keywords, scoring metadata, and stores it in the context tree
 2. **Syncing context** — after each turn, a hook queries ByteRover for ranked knowledge and writes a cross-reference file that Claude's recall system can pick up
@@ -27,10 +27,7 @@ The result: Claude's memories are indexed, scored, and searchable alongside the 
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed
 - Node.js 20+
-- [brv CLI](https://www.byterover.dev) installed and available on your `PATH`. The brv path depends on how you installed it:
-  - **curl**: the default path is `~/.brv-cli/bin/brv`
-  - **npm**: run `which brv` to find the path
-- A project with `.brv/` initialized (`brv init`)
+- [brv CLI](https://docs.byterover.dev/quickstart) installed and available on your `PATH`
 
 ## Quick start
 
@@ -46,11 +43,12 @@ npm install -g @byterover/claude-bridge
 brv-claude-bridge install
 ```
 
-This adds three hooks to `~/.claude/settings.json`:
+This adds four hooks to `~/.claude/settings.json`:
 
 - **PostToolUse(Write)** — triggers `brv-claude-bridge ingest` when Claude writes a memory file
 - **PostToolUse(Edit)** — triggers `brv-claude-bridge ingest` when Claude edits a memory file
 - **Stop** — triggers `brv-claude-bridge sync` after each turn to refresh cross-references
+- **UserPromptSubmit** — triggers `brv-claude-bridge recall` to query ByteRover with the user's prompt and inject relevant context before the model call
 
 Your existing settings and hooks are preserved. A backup is saved to `settings.json.brv-backup`.
 
@@ -68,7 +66,7 @@ brv-claude-bridge doctor
   ✓ brv CLI — byterover-cli/2.5.0
   ✓ Context tree — /path/to/project/.brv/context-tree
   ✓ Claude settings — ~/.claude/settings.json
-  ✓ Bridge hooks — PostToolUse + Stop hooks found
+  ✓ Bridge hooks — PostToolUse + Stop + UserPromptSubmit hooks found
   ✓ Bridge executable — /usr/local/bin/brv-claude-bridge
   ✓ Memory directory — ~/.claude/projects/-path-to-project/memory/
 
@@ -138,6 +136,15 @@ Called by the Stop hook. Queries ByteRover for ranked knowledge and writes `_brv
 | `--json`         | Output result as JSON                    |
 | `--memory-dir`   | Override path to Claude memory directory |
 
+### `brv-claude-bridge recall`
+
+Called by the UserPromptSubmit hook. Reads the user's prompt from stdin, queries ByteRover with it, and returns targeted context as `additionalContext` that Claude sees before generating a response.
+
+- Runs **synchronously** — delays the model call until ByteRover responds (6s internal timeout, 8s hook timeout)
+- Skips trivially short prompts (< 5 chars)
+- If ByteRover query fails or times out, exits silently — prompt proceeds without context
+- Wraps results in `<byterover-context>` tags
+
 ### `brv-claude-bridge doctor`
 
 Runs 6 diagnostic checks: brv CLI, context tree, settings file, installed hooks, bridge executable, and memory directory resolution.
@@ -145,6 +152,19 @@ Runs 6 diagnostic checks: brv CLI, context tree, settings file, installed hooks,
 ## How it works
 
 The bridge uses Claude Code's [hook system](https://docs.anthropic.com/en/docs/claude-code/hooks) to intercept memory operations without modifying Claude Code's source.
+
+### Recall flow (UserPromptSubmit hook)
+
+```
+User types: "fix the combo scoring bug"
+  │
+  ▼ UserPromptSubmit hook fires (before model call)
+brv-claude-bridge recall
+  │ brv query "fix the combo scoring bug" → targeted results
+  ▼
+Claude sees <byterover-context> as system reminder
+  (live, relevant to this specific prompt)
+```
 
 ### Ingest flow (PostToolUse hook)
 
@@ -185,6 +205,45 @@ The bridge resolves Claude's memory directory using the same logic as Claude Cod
 3. `~/.claude/projects/<sanitized-canonical-git-root>/memory/`
 
 Git worktrees are resolved to their canonical root so all worktrees share one memory directory.
+
+### Multi-project support
+
+The bridge naturally supports multiple projects. Claude Code scopes memory per git repository, and ByteRover scopes its context tree per `.brv/` directory. Both use the same `cwd` from the hook input as their anchor:
+
+```
+/Users/x/project-a/        ← claude session here
+├── .git/                   ← Claude memory: ~/.claude/projects/-Users-x-project-a/memory/
+├── .brv/                   ← ByteRover tree: project-a/.brv/context-tree/
+└── src/
+
+/Users/x/project-b/        ← separate claude session here
+├── .git/                   ← Claude memory: ~/.claude/projects/-Users-x-project-b/memory/
+├── .brv/                   ← ByteRover tree: project-b/.brv/context-tree/
+└── src/
+```
+
+Each project's memories are ingested into its own context tree and synced back to its own memory directory. No cross-project leakage.
+
+**Important: initialize `.brv/` at the git root.** Claude Code resolves memory directories from the canonical git root. ByteRover walks up from `cwd` to find `.brv/`. When both are at the same level, everything maps correctly.
+
+If you initialize `.brv/` in a subdirectory instead of the git root, the bridge will encounter mismatches:
+
+```
+/monorepo/                  ← git root (Claude memory lives here)
+├── .git/
+├── frontend/
+│   └── .brv/               ← brv initialized here, not at git root
+└── backend/                ← sessions from here won't find .brv/
+```
+
+In this layout, Claude sessions from `/monorepo/backend/` would fail to reach the `.brv/` in `frontend/`. To fix this, initialize ByteRover at the git root:
+
+```bash
+cd /monorepo
+brv init                    # .brv/ at git root — matches Claude's project boundary
+```
+
+If you need separate context trees for subdirectories in a monorepo, initialize `.brv/` in each subdirectory and run `claude` from within that subdirectory (not from the monorepo root).
 
 ### Hook identification
 
@@ -236,6 +295,7 @@ src/
     uninstall.ts              # Remove bridge hooks (per-hook removal)
     ingest.ts                 # PostToolUse handler — Write/Edit split, brv curate
     sync.ts                   # Stop handler — brv query, _brv_context.md, MEMORY.md pointer
+    recall.ts                 # UserPromptSubmit handler — live brv query with user prompt
     doctor.ts                 # 6 diagnostic checks
 ```
 

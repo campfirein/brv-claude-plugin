@@ -27,5 +27,13 @@ export const StopHookInputSchema = BaseHookInputSchema.extend({
   last_assistant_message: z.string().optional(),
 });
 
+export const UserPromptSubmitHookInputSchema = BaseHookInputSchema.extend({
+  hook_event_name: z.literal("UserPromptSubmit"),
+  prompt: z.string(),
+});
+
 export type PostToolUseHookInput = z.infer<typeof PostToolUseHookInputSchema>;
 export type StopHookInput = z.infer<typeof StopHookInputSchema>;
+export type UserPromptSubmitHookInput = z.infer<
+  typeof UserPromptSubmitHookInputSchema
+>;
