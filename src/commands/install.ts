@@ -65,6 +65,18 @@ function buildDesiredHooks(): Array<{
         ],
       },
     },
+    {
+      event: "UserPromptSubmit",
+      entry: {
+        hooks: [
+          {
+            type: "command",
+            command: buildHookCommand("recall"),
+            timeout: 8,
+          },
+        ],
+      },
+    },
   ];
 }
 

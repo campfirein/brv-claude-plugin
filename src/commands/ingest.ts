@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 import type { Command } from "commander";
 import { brvCurate } from "../brv-process.js";
-import { ccTypeToDomain, parseCcMemoryFile } from "../cc-frontmatter.js";
+import { parseCcMemoryFile } from "../cc-frontmatter.js";
 import { getCcMemoryDir, isCcMemoryPath } from "../memory-path.js";
 import { PostToolUseHookInputSchema } from "../schemas/cc-hook-input.js";
 import { readStdinJson } from "../stdin.js";
@@ -86,19 +86,10 @@ export function registerIngestCommand(program: Command): void {
         }
 
         const { frontmatter, body } = parsed;
-        const domain = ccTypeToDomain(frontmatter.type);
 
-        // Build curate context
-        const curateContext = [
-          `Claude Code saved a memory of type "${frontmatter.type}".`,
-          `Name: ${frontmatter.name}`,
-          `Description: ${frontmatter.description}`,
-          "",
-          "Content:",
-          body.trim(),
-          "",
-          `Curate this into the ${domain} domain. Use UPSERT with the title "${frontmatter.name}".`,
-        ].join("\n");
+        // Pass content to brv curate without path constraints.
+        // Let ByteRover's agent decide the best domain/topic structure.
+        const curateContext = body.trim();
 
         // Fire-and-forget curate
         await brvCurate({
@@ -112,7 +103,6 @@ export function registerIngestCommand(program: Command): void {
           ingested: true,
           name: frontmatter.name,
           type: frontmatter.type,
-          domain,
         });
       } catch (err) {
         // All errors → stderr + exit 0. Never exit 2 (would block Claude).

@@ -65,15 +65,17 @@ export function registerDoctorCommand(program: Command): void {
         const hooks = settings.hooks as Record<string, unknown[]> | undefined;
         const hasPostToolUse = findBridgeHookInEvent(hooks, "PostToolUse");
         const hasStop = findBridgeHookInEvent(hooks, "Stop");
-        const installed = hasPostToolUse && hasStop;
+        const hasUserPrompt = findBridgeHookInEvent(hooks, "UserPromptSubmit");
+        const installed = hasPostToolUse && hasStop && hasUserPrompt;
         results.push({
           label: "Bridge hooks",
           pass: installed,
           detail: installed
-            ? "PostToolUse + Stop hooks found"
+            ? "PostToolUse + Stop + UserPromptSubmit hooks found"
             : `missing: ${[
                 !hasPostToolUse && "PostToolUse",
                 !hasStop && "Stop",
+                !hasUserPrompt && "UserPromptSubmit",
               ]
                 .filter(Boolean)
                 .join(", ")}`,
