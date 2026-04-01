@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { accessSync, constants, existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -40,11 +40,17 @@ export function resolveBridgeExecutable(): string {
     const resolved = resolve(pkgRoot, binEntry);
     if (existsSync(resolved)) {
       assertNoSpaces(resolved);
-      return resolved;
+      // Only return the bare path if it's actually executable (e.g. npm
+      // global install creates a proper shim with +x). tsc output and
+      // local dev builds are 0644, so we must prefix with node.
+      if (isExecutable(resolved)) {
+        return resolved;
+      }
+      return `node ${resolved}`;
     }
   }
 
-  // Dev fallback: dist/cli.js
+  // Dev fallback: dist/cli.js (never executable — always prefix with node)
   const distCli = join(pkgRoot, "dist", "cli.js");
   if (existsSync(distCli)) {
     assertNoSpaces(distCli);
@@ -97,6 +103,15 @@ function findPackageRoot(): string {
     dir = parent;
   }
   throw new Error("Cannot find package.json for brv-claude-bridge");
+}
+
+function isExecutable(filePath: string): boolean {
+  try {
+    accessSync(filePath, constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function assertNoSpaces(resolvedPath: string): void {

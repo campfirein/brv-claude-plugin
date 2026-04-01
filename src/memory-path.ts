@@ -94,6 +94,19 @@ function validateMemoryPath(
   // Reject UNC paths on Windows
   if (normalized.startsWith("\\\\")) return undefined;
 
+  // Reject paths that resolve to home dir, its parent, or root-like dirs.
+  // A malicious settings file with autoMemoryDirectory: "~/.." would otherwise
+  // redirect bridge writes to /Users/ (or equivalent).
+  const home = homedir();
+  const homeParent = dirname(home);
+  if (
+    normalized === home ||
+    normalized === homeParent ||
+    normalized === dirname(homeParent)
+  ) {
+    return undefined;
+  }
+
   return (normalized + sep).normalize("NFC");
 }
 
