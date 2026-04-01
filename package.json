@@ -1,0 +1,51 @@
+{
+  "name": "@byterover/claude-bridge",
+  "version": "0.1.0",
+  "description": "Native bridge between ByteRover context engine and Claude Code — enriches Claude's auto-memory with BM25-ranked knowledge from brv context tree",
+  "type": "module",
+  "bin": {
+    "brv-claude-bridge": "./dist/cli.js"
+  },
+  "main": "./dist/cli.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "test": "vitest run --dir test",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/"
+  },
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "commander": "^13.0.0",
+    "js-yaml": "^4.1.0",
+    "picocolors": "^1.1.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.0",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "keywords": [
+    "byterover",
+    "claude-code",
+    "memory",
+    "context-engine",
+    "bridge"
+  ],
+  "author": "ByteRover",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

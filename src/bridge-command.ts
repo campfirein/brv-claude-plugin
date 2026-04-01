@@ -1,0 +1,109 @@
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+// ---------------------------------------------------------------------------
+// Marker — explicit shell comment suffix for hook identification.
+// Not derived from path text. Injected deliberately into every stored command.
+// ---------------------------------------------------------------------------
+
+export const BRIDGE_HOOK_MARKER = "#brv-claude-bridge";
+
+// ---------------------------------------------------------------------------
+// Executable resolution
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve the executable prefix for hook commands.
+ * Returns ONLY the executable part — callers append subcommand via buildHookCommand().
+ *
+ *   Production: "/usr/local/bin/brv-claude-bridge"
+ *   Dev:        "node /abs/path/to/dist/cli.js"
+ */
+export function resolveBridgeExecutable(): string {
+  const pkgRoot = findPackageRoot();
+
+  // Try production bin first
+  const pkgJson = JSON.parse(
+    readFileSync(join(pkgRoot, "package.json"), "utf-8"),
+  ) as Record<string, unknown>;
+
+  const bin = pkgJson.bin as Record<string, string> | string | undefined;
+  const binEntry =
+    typeof bin === "string"
+      ? bin
+      : typeof bin === "object" && bin !== null
+        ? bin["brv-claude-bridge"]
+        : undefined;
+
+  if (binEntry) {
+    const resolved = resolve(pkgRoot, binEntry);
+    if (existsSync(resolved)) {
+      assertNoSpaces(resolved);
+      return resolved;
+    }
+  }
+
+  // Dev fallback: dist/cli.js
+  const distCli = join(pkgRoot, "dist", "cli.js");
+  if (existsSync(distCli)) {
+    assertNoSpaces(distCli);
+    return `node ${distCli}`;
+  }
+
+  throw new Error(
+    `Cannot resolve bridge executable. Run 'pnpm build' first, ` +
+      `or install the package globally.`,
+  );
+}
+
+/**
+ * Build the full hook command string for a subcommand.
+ * Appends the marker as a trailing shell comment so isBridgeHook() works
+ * regardless of install path or directory name.
+ *
+ *   "/usr/local/bin/brv-claude-bridge ingest #brv-claude-bridge"
+ *   "node /tmp/bridge/dist/cli.js sync #brv-claude-bridge"
+ */
+export function buildHookCommand(subcommand: string): string {
+  const exe = resolveBridgeExecutable();
+  return `${exe} ${subcommand} ${BRIDGE_HOOK_MARKER}`;
+}
+
+/**
+ * Check if a hook object was installed by this bridge.
+ * Matches on BRIDGE_HOOK_MARKER, not path text.
+ */
+export function isBridgeHook(hook: Record<string, unknown>): boolean {
+  return (
+    typeof hook.command === "string" &&
+    hook.command.includes(BRIDGE_HOOK_MARKER)
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function findPackageRoot(): string {
+  // Walk up from this file to find package.json
+  let dir = dirname(fileURLToPath(import.meta.url));
+  for (let i = 0; i < 10; i++) {
+    if (existsSync(join(dir, "package.json"))) {
+      return dir;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  throw new Error("Cannot find package.json for brv-claude-bridge");
+}
+
+function assertNoSpaces(resolvedPath: string): void {
+  if (/\s/.test(resolvedPath)) {
+    throw new Error(
+      `Bridge install path contains spaces: "${resolvedPath}"\n` +
+        `Install brv-claude-bridge to a path without spaces, or use a symlink.`,
+    );
+  }
+}
