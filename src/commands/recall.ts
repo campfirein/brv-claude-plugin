@@ -41,14 +41,16 @@ export function registerRecallCommand(program: Command): void {
           process.exit(0);
         }
 
-        // Return additionalContext for cc-ts to inject as <system-reminder>
+        // Return additionalContext wrapped in hookSpecificOutput for Claude Code
         const output = {
-          hookEventName: "UserPromptSubmit",
-          additionalContext:
-            `<byterover-context>\n` +
-            `The following knowledge is from ByteRover context engine:\n\n` +
-            `${resultText.trim()}\n` +
-            `</byterover-context>`,
+          hookSpecificOutput: {
+            hookEventName: "UserPromptSubmit",
+            additionalContext:
+              `<byterover-context>\n` +
+              `The following knowledge is from ByteRover context engine:\n\n` +
+              `${resultText.trim()}\n` +
+              `</byterover-context>`,
+          },
         };
 
         console.log(JSON.stringify(output));
