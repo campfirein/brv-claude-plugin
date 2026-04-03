@@ -94,8 +94,8 @@ export function registerSyncCommand(program: Command): void {
             "",
           ].join("\n");
           writeFileSync(contextPath, content, "utf-8");
-        } else {
-          // No context tree or empty index — write stub
+        } else if (!existsSync(contextPath)) {
+          // No context tree and no existing file — write stub for first run
           const content = [
             "---",
             "name: byterover context",
@@ -108,6 +108,7 @@ export function registerSyncCommand(program: Command): void {
           ].join("\n");
           writeFileSync(contextPath, content, "utf-8");
         }
+        // Otherwise: _index.md unavailable but _brv_context.md exists — keep existing content
 
         // Add pointer to MEMORY.md if not already present (idempotent)
         const memoryPath = join(memoryDir, MEMORY_INDEX);
