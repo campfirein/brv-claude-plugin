@@ -1,19 +1,43 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Command } from "commander";
-import { BrvBridge } from "@byterover/brv-bridge";
 import { getCcMemoryDir } from "../memory-path.js";
 import { StopHookInputSchema } from "../schemas/cc-hook-input.js";
 import { readStdinJson } from "../stdin.js";
 
 const BRV_CONTEXT_FILE = "_brv_context.md";
+const CONTEXT_TREE_INDEX = ".brv/context-tree/_index.md";
 const MEMORY_INDEX = "MEMORY.md";
 const POINTER_LINE =
   "- [ByteRover context](_brv_context.md) \u2014 cross-references from project knowledge base";
 
+function buildContextTreeGuide(cwd: string): string {
+  const treePath = join(cwd, ".brv/context-tree");
+  return [
+    "<Note>",
+    `The full ByteRover context tree is located at \`${treePath}/\`.`,
+    "All paths referenced below are relative to this directory.",
+    "When you need deeper context on any topic, read the relevant files there.",
+    "Each domain contains topics with detailed narratives, facts, and code references that go beyond this summary.",
+    "</Note>",
+  ].join("\n");
+}
+
 interface SyncOpts {
   json?: boolean;
   memoryDir?: string;
+}
+
+/**
+ * Strip YAML frontmatter (--- ... ---) from the beginning of a markdown string.
+ * Returns the body content after the closing --- delimiter.
+ */
+function stripFrontmatter(content: string): string {
+  const match = content.match(/^---\n[\s\S]*?\n---\n?/);
+  if (match) {
+    return content.slice(match[0].length);
+  }
+  return content;
 }
 
 export function registerSyncCommand(program: Command): void {
@@ -33,18 +57,19 @@ export function registerSyncCommand(program: Command): void {
         const cwd = input.cwd;
         const memoryDir = opts.memoryDir ?? getCcMemoryDir(cwd);
 
-        // Query ByteRover for ranked knowledge
-        let queryResult: string | undefined;
-        try {
-          const bridge = new BrvBridge({ cwd, recallTimeoutMs: 8_000 });
-          const { content } = await bridge.recall(
-            "List the most important knowledge entries from _cc/ domain, ranked by importance. Return a concise summary.",
-          );
-          if (content) {
-            queryResult = content;
+        // Read the context tree root _index.md directly from disk
+        const indexPath = join(cwd, CONTEXT_TREE_INDEX);
+        let indexBody: string | undefined;
+        if (existsSync(indexPath)) {
+          try {
+            const raw = readFileSync(indexPath, "utf-8");
+            const body = stripFrontmatter(raw).trim();
+            if (body) {
+              indexBody = body;
+            }
+          } catch {
+            // Read failed — fall through to stub
           }
-        } catch {
-          // brv query failed or timed out — fall through to stub
         }
 
         // Ensure memory dir exists
@@ -53,8 +78,8 @@ export function registerSyncCommand(program: Command): void {
         const now = new Date().toISOString();
         const contextPath = join(memoryDir, BRV_CONTEXT_FILE);
 
-        if (queryResult) {
-          // Success: write full context file
+        if (indexBody) {
+          // Success: write guide first, then context tree index body
           const content = [
             "---",
             "name: byterover context",
@@ -63,12 +88,14 @@ export function registerSyncCommand(program: Command): void {
             "---",
             `Last synced: ${now}`,
             "",
-            queryResult.trim(),
+            buildContextTreeGuide(cwd),
+            "",
+            indexBody,
             "",
           ].join("\n");
           writeFileSync(contextPath, content, "utf-8");
         } else {
-          // Failure: write stub so pointer doesn't reference stale content
+          // No context tree or empty index — write stub
           const content = [
             "---",
             "name: byterover context",
@@ -76,7 +103,7 @@ export function registerSyncCommand(program: Command): void {
             "type: reference",
             "---",
             `Last sync attempt: ${now}`,
-            "Status: no results available \u2014 ByteRover context tree may be empty or query timed out.",
+            "Status: no context tree index available \u2014 .brv/context-tree/_index.md not found or empty.",
             "",
           ].join("\n");
           writeFileSync(contextPath, content, "utf-8");
@@ -104,7 +131,7 @@ export function registerSyncCommand(program: Command): void {
           console.log(
             JSON.stringify({
               synced: true,
-              hasContent: !!queryResult,
+              hasContent: !!indexBody,
               contextPath,
             }),
           );
