@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 import type { Command } from "commander";
-import { brvCurate } from "../brv-process.js";
+import { BrvBridge } from "@byterover/brv-bridge";
 import { parseCcMemoryFile } from "../cc-frontmatter.js";
 import { getCcMemoryDir, isCcMemoryPath } from "../memory-path.js";
 import { PostToolUseHookInputSchema } from "../schemas/cc-hook-input.js";
@@ -92,12 +92,8 @@ export function registerIngestCommand(program: Command): void {
         const curateContext = body.trim();
 
         // Fire-and-forget curate
-        await brvCurate({
-          cwd,
-          context: curateContext,
-          detach: true,
-          timeoutMs: 15_000,
-        });
+        const bridge = new BrvBridge({ cwd, persistTimeoutMs: 15_000 });
+        await bridge.persist(curateContext);
 
         exit(opts, {
           ingested: true,
@@ -107,7 +103,7 @@ export function registerIngestCommand(program: Command): void {
       } catch (err) {
         // All errors → stderr + exit 0. Never exit 2 (would block Claude).
         process.stderr.write(
-          `brv-claude-bridge ingest error: ${err instanceof Error ? err.message : String(err)}\n`,
+          `brv-claude-plugin ingest error: ${err instanceof Error ? err.message : String(err)}\n`,
         );
         process.exit(0);
       }

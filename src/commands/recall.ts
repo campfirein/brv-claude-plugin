@@ -1,5 +1,5 @@
 import type { Command } from "commander";
-import { brvQuery } from "../brv-process.js";
+import { BrvBridge } from "@byterover/brv-bridge";
 import { UserPromptSubmitHookInputSchema } from "../schemas/cc-hook-input.js";
 import { readStdinJson } from "../stdin.js";
 
@@ -20,24 +20,10 @@ export function registerRecallCommand(program: Command): void {
         }
 
         // Query ByteRover with the actual user prompt
-        let resultText: string | undefined;
-        try {
-          const response = await brvQuery({
-            cwd,
-            query: prompt,
-            timeoutMs: 6_000,
-          });
-          resultText =
-            response.data?.result ?? response.data?.content ?? undefined;
-          if (resultText && !resultText.trim()) {
-            resultText = undefined;
-          }
-        } catch {
-          // brv query failed or timed out — proceed without context
-          process.exit(0);
-        }
+        const bridge = new BrvBridge({ cwd, recallTimeoutMs: 6_000 });
+        const { content } = await bridge.recall(prompt);
 
-        if (!resultText) {
+        if (!content) {
           process.exit(0);
         }
 
@@ -48,7 +34,7 @@ export function registerRecallCommand(program: Command): void {
             additionalContext:
               `<byterover-context>\n` +
               `The following knowledge is from ByteRover context engine:\n\n` +
-              `${resultText.trim()}\n` +
+              `${content}\n` +
               `</byterover-context>`,
           },
         };

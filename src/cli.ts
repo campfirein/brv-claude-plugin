@@ -9,7 +9,7 @@ import { registerRecallCommand } from "./commands/recall.js";
 import { registerDoctorCommand } from "./commands/doctor.js";
 
 program
-  .name("brv-claude-bridge")
+  .name("brv-claude-plugin")
   .description(
     "Native bridge between ByteRover context engine and Claude Code auto-memory",
   )

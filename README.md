@@ -40,34 +40,34 @@ npm install -g @byterover/claude-bridge
 ### 2. Install hooks
 
 ```bash
-brv-claude-bridge install
+brv-claude-plugin install
 ```
 
 This adds four hooks to `~/.claude/settings.json`:
 
-- **PostToolUse(Write)** — triggers `brv-claude-bridge ingest` when Claude writes a memory file
-- **PostToolUse(Edit)** — triggers `brv-claude-bridge ingest` when Claude edits a memory file
-- **Stop** — triggers `brv-claude-bridge sync` after each turn to refresh cross-references
-- **UserPromptSubmit** — triggers `brv-claude-bridge recall` to query ByteRover with the user's prompt and inject relevant context before the model call
+- **PostToolUse(Write)** — triggers `brv-claude-plugin ingest` when Claude writes a memory file
+- **PostToolUse(Edit)** — triggers `brv-claude-plugin ingest` when Claude edits a memory file
+- **Stop** — triggers `brv-claude-plugin sync` after each turn to refresh cross-references
+- **UserPromptSubmit** — triggers `brv-claude-plugin recall` to query ByteRover with the user's prompt and inject relevant context before the model call
 
 Your existing settings and hooks are preserved. A backup is saved to `settings.json.brv-backup`.
 
 ### 3. Verify
 
 ```bash
-brv-claude-bridge doctor
+brv-claude-plugin doctor
 ```
 
 You should see all checks passing:
 
 ```
-brv-claude-bridge doctor
+brv-claude-plugin doctor
 
   ✓ brv CLI — byterover-cli/2.5.0
   ✓ Context tree — /path/to/project/.brv/context-tree
   ✓ Claude settings — ~/.claude/settings.json
   ✓ Bridge hooks — PostToolUse + Stop + UserPromptSubmit hooks found
-  ✓ Bridge executable — /usr/local/bin/brv-claude-bridge
+  ✓ Bridge executable — /usr/local/bin/brv-claude-plugin
   ✓ Memory directory — ~/.claude/projects/-path-to-project/memory/
 
 All checks passed.
@@ -84,14 +84,14 @@ Memories are ingested into `.brv/context-tree/_cc/` automatically. No changes to
 ### 5. Uninstall (if needed)
 
 ```bash
-brv-claude-bridge uninstall
+brv-claude-plugin uninstall
 ```
 
 Removes only bridge hooks. Your other hooks and settings are untouched.
 
 ## Commands
 
-### `brv-claude-bridge install`
+### `brv-claude-plugin install`
 
 Installs hooks into Claude Code's `~/.claude/settings.json`.
 
@@ -100,9 +100,9 @@ Installs hooks into Claude Code's `~/.claude/settings.json`.
 | `--dry-run`         | Show what would be written without saving  |
 | `--settings-path`   | Override path to Claude Code settings.json |
 
-Idempotent — safe to run multiple times. Deduplicates by checking for the `#brv-claude-bridge` marker in existing hooks.
+Idempotent — safe to run multiple times. Deduplicates by checking for the `#brv-claude-plugin` marker in existing hooks.
 
-### `brv-claude-bridge uninstall`
+### `brv-claude-plugin uninstall`
 
 Removes bridge hooks from settings. Per-hook removal — if a matcher entry contains both a bridge hook and your own hook, only the bridge hook is deleted.
 
@@ -110,7 +110,7 @@ Removes bridge hooks from settings. Per-hook removal — if a matcher entry cont
 | ------------------- | ------------------------------------------ |
 | `--settings-path`   | Override path to Claude Code settings.json |
 
-### `brv-claude-bridge ingest`
+### `brv-claude-plugin ingest`
 
 Called by the PostToolUse hook. Reads hook JSON from stdin, parses the memory file, and sends it to `brv curate --detach`.
 
@@ -123,20 +123,21 @@ Called by the PostToolUse hook. Reads hook JSON from stdin, parses the memory fi
 | --------- | ------------------------ |
 | `--json`  | Output result as JSON    |
 
-### `brv-claude-bridge sync`
+### `brv-claude-plugin sync`
 
-Called by the Stop hook. Queries ByteRover for ranked knowledge and writes `_brv_context.md` in Claude's memory directory with a single pointer in `MEMORY.md`.
+Called by the Stop hook. Copies the context tree index from `.brv/context-tree/_index.md` into `_brv_context.md` in Claude's memory directory with a single pointer in `MEMORY.md`.
 
-- On success: writes full cross-reference content
-- On failure/timeout: writes a stub with "(sync pending)" so stale content isn't served
-- Freshness is best-effort — runs async in the background
+- On success: writes context tree index with a guide note pointing to the full tree
+- If `_index.md` unavailable but `_brv_context.md` exists: preserves existing content
+- If `_index.md` unavailable and no existing file: writes a stub with "(sync pending)"
+- Runs async in the background — never blocks Claude
 
 | Option           | Description                              |
 | ---------------- | ---------------------------------------- |
 | `--json`         | Output result as JSON                    |
 | `--memory-dir`   | Override path to Claude memory directory |
 
-### `brv-claude-bridge recall`
+### `brv-claude-plugin recall`
 
 Called by the UserPromptSubmit hook. Reads the user's prompt from stdin, queries ByteRover with it, and returns targeted context as `additionalContext` that Claude sees before generating a response.
 
@@ -145,7 +146,7 @@ Called by the UserPromptSubmit hook. Reads the user's prompt from stdin, queries
 - If ByteRover query fails or times out, exits silently — prompt proceeds without context
 - Wraps results in `<byterover-context>` tags
 
-### `brv-claude-bridge doctor`
+### `brv-claude-plugin doctor`
 
 Runs 6 diagnostic checks: brv CLI, context tree, settings file, installed hooks, bridge executable, and memory directory resolution.
 
@@ -159,7 +160,7 @@ The bridge uses Claude Code's [hook system](https://docs.anthropic.com/en/docs/c
 User types: "fix the combo scoring bug"
   │
   ▼ UserPromptSubmit hook fires (before model call)
-brv-claude-bridge recall
+brv-claude-plugin recall
   │ brv query "fix the combo scoring bug" → targeted results
   ▼
 Claude sees <byterover-context> as system reminder
@@ -172,7 +173,7 @@ Claude sees <byterover-context> as system reminder
 Claude writes ~/.claude/projects/.../memory/feedback_testing.md
   │
   ▼ PostToolUse hook fires, pipes JSON to stdin
-brv-claude-bridge ingest
+brv-claude-plugin ingest
   │ Parse cc-ts frontmatter (name, description, type)
   │ Map type → domain (_cc/user, _cc/feedback, _cc/project, _cc/reference)
   ▼
@@ -189,11 +190,11 @@ brv curate --detach --format json -- "context string"
 Turn ends
   │
   ▼ Stop hook fires
-brv-claude-bridge sync
-  │ brv query → ranked knowledge from _cc/ domain
+brv-claude-plugin sync
+  │ read .brv/context-tree/_index.md → copy to memory dir
   ▼
 ~/.claude/projects/.../memory/_brv_context.md
-  (cross-references from ByteRover knowledge base)
+  (context tree index + guide to full tree)
 ```
 
 ### Memory path resolution
@@ -247,7 +248,7 @@ If you need separate context trees for subdirectories in a monorepo, initialize 
 
 ### Hook identification
 
-Every stored hook command includes a `#brv-claude-bridge` shell comment marker. This marker — not the path text — is used by `install` (dedupe), `uninstall` (removal), and `doctor` (detection). A clone in any directory will work correctly.
+Every stored hook command includes a `#brv-claude-plugin` shell comment marker. This marker — not the path text — is used by `install` (dedupe), `uninstall` (removal), and `doctor` (detection). A clone in any directory will work correctly.
 
 ## Development
 
@@ -282,11 +283,10 @@ node dist/cli.js doctor
 ```
 src/
   cli.ts                      # Commander.js entry point
-  brv-process.ts              # brv CLI spawning (curate, query) with timeout/abort
   cc-frontmatter.ts           # Claude Code memory YAML frontmatter parser
   memory-path.ts              # Full cc-ts memory path resolution (git root, worktrees, env vars)
   stdin.ts                    # Read + validate JSON from stdin
-  bridge-command.ts           # Executable resolution + #brv-claude-bridge marker
+  bridge-command.ts           # Executable resolution + #brv-claude-plugin marker
   schemas/
     cc-hook-input.ts          # Zod schemas for PostToolUse and Stop hook input
     cc-settings.ts            # Raw JSON read/write for settings.json (lossless)
@@ -294,11 +294,11 @@ src/
     install.ts                # Install hooks into settings.json (per-hook dedupe, backup)
     uninstall.ts              # Remove bridge hooks (per-hook removal)
     ingest.ts                 # PostToolUse handler — Write/Edit split, brv curate
-    sync.ts                   # Stop handler — brv query, _brv_context.md, MEMORY.md pointer
+    sync.ts                   # Stop handler — _index.md copy, _brv_context.md, MEMORY.md pointer
     recall.ts                 # UserPromptSubmit handler — live brv query with user prompt
     doctor.ts                 # 6 diagnostic checks
 ```
 
 ## License
 
-MIT
+[Elastic License 2.0 (ELv2)](./LICENSE)

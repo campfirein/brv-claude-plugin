@@ -6,7 +6,7 @@ describe("isBridgeHook", () => {
     expect(
       isBridgeHook({
         type: "command",
-        command: `/usr/local/bin/brv-claude-bridge ingest ${BRIDGE_HOOK_MARKER}`,
+        command: `/usr/local/bin/brv-claude-plugin ingest ${BRIDGE_HOOK_MARKER}`,
       }),
     ).toBe(true);
   });

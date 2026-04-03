@@ -124,7 +124,7 @@ export function registerDoctorCommand(program: Command): void {
       }
 
       // Print results
-      console.log(pc.bold("\nbrv-claude-bridge doctor\n"));
+      console.log(pc.bold("\nbrv-claude-plugin doctor\n"));
       let allPass = true;
       for (const r of results) {
         const icon = r.pass ? pc.green("\u2713") : pc.red("\u2717");
@@ -138,7 +138,7 @@ export function registerDoctorCommand(program: Command): void {
         console.log(pc.green("All checks passed."));
       } else {
         console.log(
-          pc.yellow("Some checks failed. Run 'brv-claude-bridge install' to set up."),
+          pc.yellow("Some checks failed. Run 'brv-claude-plugin install' to set up."),
         );
       }
     });

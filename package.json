@@ -1,18 +1,20 @@
 {
-  "name": "@byterover/claude-bridge",
+  "name": "@byterover/claude-plugin",
   "version": "0.1.0",
   "description": "Native bridge between ByteRover context engine and Claude Code — enriches Claude's auto-memory with BM25-ranked knowledge from brv context tree",
   "type": "module",
   "bin": {
-    "brv-claude-bridge": "./dist/cli.js"
+    "brv-claude-plugin": "./dist/cli.js"
   },
   "main": "./dist/cli.js",
   "scripts": {
-    "build": "tsc",
+    "build": "rm -rf dist && tsc",
     "dev": "tsx src/cli.ts",
     "test": "vitest run --dir test",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src/"
+    "lint": "eslint src/",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run build && npm test"
   },
   "files": [
     "dist/**/*.js",
@@ -21,6 +23,7 @@
     "LICENSE"
   ],
   "dependencies": {
+    "@byterover/brv-bridge": "^1.0.0",
     "commander": "^13.0.0",
     "js-yaml": "^4.1.0",
     "picocolors": "^1.1.0",
@@ -41,9 +44,17 @@
     "bridge"
   ],
   "author": "ByteRover",
-  "license": "MIT",
+  "license": "Elastic-2.0",
   "engines": {
     "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/campfirein/brv-claude-plugin.git"
+  },
+  "homepage": "https://github.com/campfirein/brv-claude-plugin#readme",
+  "bugs": {
+    "url": "https://github.com/campfirein/brv-claude-plugin/issues"
   },
   "publishConfig": {
     "access": "public"

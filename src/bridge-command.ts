@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 // Not derived from path text. Injected deliberately into every stored command.
 // ---------------------------------------------------------------------------
 
-export const BRIDGE_HOOK_MARKER = "#brv-claude-bridge";
+export const BRIDGE_HOOK_MARKER = "#brv-claude-plugin";
 
 // ---------------------------------------------------------------------------
 // Executable resolution
@@ -17,7 +17,7 @@ export const BRIDGE_HOOK_MARKER = "#brv-claude-bridge";
  * Resolve the executable prefix for hook commands.
  * Returns ONLY the executable part — callers append subcommand via buildHookCommand().
  *
- *   Production: "/usr/local/bin/brv-claude-bridge"
+ *   Production: "/usr/local/bin/brv-claude-plugin"
  *   Dev:        "node /abs/path/to/dist/cli.js"
  */
 export function resolveBridgeExecutable(): string {
@@ -33,7 +33,7 @@ export function resolveBridgeExecutable(): string {
     typeof bin === "string"
       ? bin
       : typeof bin === "object" && bin !== null
-        ? bin["brv-claude-bridge"]
+        ? bin["brv-claude-plugin"]
         : undefined;
 
   if (binEntry) {
@@ -68,8 +68,8 @@ export function resolveBridgeExecutable(): string {
  * Appends the marker as a trailing shell comment so isBridgeHook() works
  * regardless of install path or directory name.
  *
- *   "/usr/local/bin/brv-claude-bridge ingest #brv-claude-bridge"
- *   "node /tmp/bridge/dist/cli.js sync #brv-claude-bridge"
+ *   "/usr/local/bin/brv-claude-plugin ingest #brv-claude-plugin"
+ *   "node /tmp/bridge/dist/cli.js sync #brv-claude-plugin"
  */
 export function buildHookCommand(subcommand: string): string {
   const exe = resolveBridgeExecutable();
@@ -102,7 +102,7 @@ function findPackageRoot(): string {
     if (parent === dir) break;
     dir = parent;
   }
-  throw new Error("Cannot find package.json for brv-claude-bridge");
+  throw new Error("Cannot find package.json for brv-claude-plugin");
 }
 
 function isExecutable(filePath: string): boolean {
@@ -118,7 +118,7 @@ function assertNoSpaces(resolvedPath: string): void {
   if (/\s/.test(resolvedPath)) {
     throw new Error(
       `Bridge install path contains spaces: "${resolvedPath}"\n` +
-        `Install brv-claude-bridge to a path without spaces, or use a symlink.`,
+        `Install brv-claude-plugin to a path without spaces, or use a symlink.`,
     );
   }
 }
