@@ -79,7 +79,7 @@ All checks passed.
 claude "fix the auth bug"
 ```
 
-Memories are ingested into `.brv/context-tree/_cc/` automatically. No changes to your workflow.
+Memories are ingested into `.brv/context-tree/` automatically. No changes to your workflow.
 
 ### 5. Uninstall (if needed)
 
@@ -175,12 +175,12 @@ Claude writes ~/.claude/projects/.../memory/feedback_testing.md
   ▼ PostToolUse hook fires, pipes JSON to stdin
 brv-claude-plugin ingest
   │ Parse cc-ts frontmatter (name, description, type)
-  │ Map type → domain (_cc/user, _cc/feedback, _cc/project, _cc/reference)
+  │ Map type → domain (/user, /feedback, /project, /reference)
   ▼
 brv curate --detach --format json -- "context string"
   │ Daemon queues curation (async, non-blocking)
   ▼
-.brv/context-tree/_cc/feedback/testing.md
+.brv/context-tree/feedback/testing.md
   (enriched with tags, keywords, importance scoring)
 ```
 
@@ -275,7 +275,7 @@ node dist/cli.js doctor
 2. Build the plugin: `npm run build`
 3. Install hooks (dev mode): `node dist/cli.js install`
 4. Start a Claude session and make a few changes
-5. Check `.brv/context-tree/_cc/` for ingested memories
+5. Check `.brv/context-tree/` for ingested memories
 6. Check `~/.claude/projects/.../memory/_brv_context.md` for synced context
 
 ## Project structure
