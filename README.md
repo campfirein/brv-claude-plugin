@@ -1,6 +1,6 @@
-# @byterover/claude-bridge
+# @byterover/claude-plugin
 
-Native bridge between [ByteRover](https://www.byterover.dev) and [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Enriches Claude's auto-memory with ByteRover's full multi-tier retrieval — BM25 search, importance scoring, performance correlation, and LLM synthesis — giving Claude persistent, cross-referenced context that improves over time.
+Native plugin between [ByteRover](https://www.byterover.dev) and [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Enriches Claude's auto-memory with ByteRover's full multi-tier retrieval — BM25 search, importance scoring, performance correlation, and LLM synthesis — giving Claude persistent, cross-referenced context that improves over time.
 
 ## Table of contents
 
@@ -15,11 +15,11 @@ Native bridge between [ByteRover](https://www.byterover.dev) and [Claude Code](h
 
 ## What it does
 
-Claude Code has a built-in auto-memory system — it saves observations across sessions as flat markdown files. ByteRover has a richer context tree with multi-tier retrieval: BM25 text search, importance/recency scoring, maturity tier boosting, performance-memory correlation, and LLM-powered synthesis. This bridge connects the two:
+Claude Code has a built-in auto-memory system — it saves observations across sessions as flat markdown files. ByteRover has a richer context tree with multi-tier retrieval: BM25 text search, importance/recency scoring, maturity tier boosting, performance-memory correlation, and LLM-powered synthesis. This plugin connects the two:
 
 1. **Ingesting memories** — when Claude's extraction agent writes a memory file, a hook fires and sends the content to `brv curate`, which enriches it with tags, keywords, scoring metadata, and stores it in the context tree
 2. **Syncing context** — after each turn, a hook queries ByteRover for ranked knowledge and writes a cross-reference file that Claude's recall system can pick up
-3. **Zero workflow change** — you use `claude` exactly as before. The bridge runs in the background via Claude Code's hook system
+3. **Zero workflow change** — you use `claude` exactly as before. The plugin runs in the background via Claude Code's hook system
 
 The result: Claude's memories are indexed, scored, and searchable alongside the rest of your project knowledge in ByteRover.
 
@@ -31,10 +31,10 @@ The result: Claude's memories are indexed, scored, and searchable alongside the 
 
 ## Quick start
 
-### 1. Install the bridge
+### 1. Install the plugin
 
 ```bash
-npm install -g @byterover/claude-bridge
+npm install -g @byterover/claude-plugin
 ```
 
 ### 2. Install hooks
@@ -66,8 +66,8 @@ brv-claude-plugin doctor
   ✓ brv CLI — byterover-cli/2.5.0
   ✓ Context tree — /path/to/project/.brv/context-tree
   ✓ Claude settings — ~/.claude/settings.json
-  ✓ Bridge hooks — PostToolUse + Stop + UserPromptSubmit hooks found
-  ✓ Bridge executable — /usr/local/bin/brv-claude-plugin
+  ✓ Plugin hooks — PostToolUse + Stop + UserPromptSubmit hooks found
+  ✓ Plugin executable — /usr/local/bin/brv-claude-plugin
   ✓ Memory directory — ~/.claude/projects/-path-to-project/memory/
 
 All checks passed.
@@ -87,7 +87,7 @@ Memories are ingested into `.brv/context-tree/_cc/` automatically. No changes to
 brv-claude-plugin uninstall
 ```
 
-Removes only bridge hooks. Your other hooks and settings are untouched.
+Removes only plugin hooks. Your other hooks and settings are untouched.
 
 ## Commands
 
@@ -104,7 +104,7 @@ Idempotent — safe to run multiple times. Deduplicates by checking for the `#br
 
 ### `brv-claude-plugin uninstall`
 
-Removes bridge hooks from settings. Per-hook removal — if a matcher entry contains both a bridge hook and your own hook, only the bridge hook is deleted.
+Removes plugin hooks from settings. Per-hook removal — if a matcher entry contains both a plugin hook and your own hook, only the plugin hook is deleted.
 
 | Option              | Description                                |
 | ------------------- | ------------------------------------------ |
@@ -148,11 +148,11 @@ Called by the UserPromptSubmit hook. Reads the user's prompt from stdin, queries
 
 ### `brv-claude-plugin doctor`
 
-Runs 6 diagnostic checks: brv CLI, context tree, settings file, installed hooks, bridge executable, and memory directory resolution.
+Runs 6 diagnostic checks: brv CLI, context tree, settings file, installed hooks, plugin executable, and memory directory resolution.
 
 ## How it works
 
-The bridge uses Claude Code's [hook system](https://docs.anthropic.com/en/docs/claude-code/hooks) to intercept memory operations without modifying Claude Code's source.
+The plugin uses Claude Code's [hook system](https://docs.anthropic.com/en/docs/claude-code/hooks) to intercept memory operations without modifying Claude Code's source.
 
 ### Recall flow (UserPromptSubmit hook)
 
@@ -199,7 +199,7 @@ brv-claude-plugin sync
 
 ### Memory path resolution
 
-The bridge resolves Claude's memory directory using the same logic as Claude Code:
+The plugin resolves Claude's memory directory using the same logic as Claude Code:
 
 1. `CLAUDE_COWORK_MEMORY_PATH_OVERRIDE` env var (full override)
 2. `autoMemoryDirectory` from settings (local → user, excluding project settings for security)
@@ -209,7 +209,7 @@ Git worktrees are resolved to their canonical root so all worktrees share one me
 
 ### Multi-project support
 
-The bridge naturally supports multiple projects. Claude Code scopes memory per git repository, and ByteRover scopes its context tree per `.brv/` directory. Both use the same `cwd` from the hook input as their anchor:
+The plugin naturally supports multiple projects. Claude Code scopes memory per git repository, and ByteRover scopes its context tree per `.brv/` directory. Both use the same `cwd` from the hook input as their anchor:
 
 ```
 /Users/x/project-a/        ← claude session here
@@ -227,7 +227,7 @@ Each project's memories are ingested into its own context tree and synced back t
 
 **Important: initialize `.brv/` at the git root.** Claude Code resolves memory directories from the canonical git root. ByteRover walks up from `cwd` to find `.brv/`. When both are at the same level, everything maps correctly.
 
-If you initialize `.brv/` in a subdirectory instead of the git root, the bridge will encounter mismatches:
+If you initialize `.brv/` in a subdirectory instead of the git root, the plugin will encounter mismatches:
 
 ```
 /monorepo/                  ← git root (Claude memory lives here)
@@ -272,7 +272,7 @@ node dist/cli.js doctor
 ### Testing locally
 
 1. Initialize a brv project: `cd /your/project && brv init`
-2. Build the bridge: `npm run build`
+2. Build the plugin: `npm run build`
 3. Install hooks (dev mode): `node dist/cli.js install`
 4. Start a Claude session and make a few changes
 5. Check `.brv/context-tree/_cc/` for ingested memories
@@ -292,7 +292,7 @@ src/
     cc-settings.ts            # Raw JSON read/write for settings.json (lossless)
   commands/
     install.ts                # Install hooks into settings.json (per-hook dedupe, backup)
-    uninstall.ts              # Remove bridge hooks (per-hook removal)
+    uninstall.ts              # Remove plugin hooks (per-hook removal)
     ingest.ts                 # PostToolUse handler — Write/Edit split, brv curate
     sync.ts                   # Stop handler — _index.md copy, _brv_context.md, MEMORY.md pointer
     recall.ts                 # UserPromptSubmit handler — live brv query with user prompt

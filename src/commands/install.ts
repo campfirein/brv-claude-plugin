@@ -98,8 +98,7 @@ export function registerInstallCommand(program: Command): void {
         console.log(pc.dim(`Resolved executable: ${exe}`));
 
         const settingsPath =
-          opts.settingsPath ??
-          join(getClaudeConfigHome(), "settings.json");
+          opts.settingsPath ?? join(getClaudeConfigHome(), "settings.json");
 
         const settings = readSettingsRaw(settingsPath);
 
@@ -120,8 +119,7 @@ export function registerInstallCommand(program: Command): void {
 
           // Per-hook dedupe: check if any existing matcher entry with the
           // same matcher value already contains a bridge hook
-          const matcherValue =
-            "matcher" in entry ? entry.matcher : undefined;
+          const matcherValue = "matcher" in entry ? entry.matcher : undefined;
 
           const alreadyInstalled = eventHooks.some((existing) => {
             const existingMatcher = existing.matcher as string | undefined;
@@ -165,7 +163,7 @@ export function registerInstallCommand(program: Command): void {
         );
         console.log(
           pc.dim(
-            "Hooks: PostToolUse(Write), PostToolUse(Edit), Stop",
+            "Hooks: PostToolUse(Write), PostToolUse(Edit), Stop, UserPromptSubmit",
           ),
         );
       } catch (err) {
