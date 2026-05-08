@@ -52,11 +52,11 @@ export function buildRecallOutput(
 ): RecallHookOutput | undefined {
   if (!args.content) return undefined;
 
-  const paths = qualifyingPaths(args.matchedDocs, args.content).slice(
+  const matches = qualifyingPaths(args.matchedDocs, args.content).slice(
     0,
     MAX_VISIBLE_PATHS,
   );
-  const summary = paths.length > 0 ? renderSummary(paths, args) : "";
+  const summary = matches.length > 0 ? renderSummary(matches, args) : "";
 
   return {
     ...(summary ? { systemMessage: summary } : {}),
@@ -74,7 +74,7 @@ export function buildRecallOutput(
 function qualifyingPaths(
   matchedDocs: ReadonlyArray<{ path: string; score?: number }> | undefined,
   content: string,
-): string[] {
+): Array<{ path: string; score?: number }> {
   // Newer CLI with structured matches: matchedDocs is the source of truth. Drop entries
   // whose score falls below the qualifying threshold.
   //
@@ -88,20 +88,24 @@ function qualifyingPaths(
   if (matchedDocs !== undefined && matchedDocs.length > 0) {
     return matchedDocs
       .filter((d) => d.score === undefined || d.score >= MIN_QUALIFYING_SCORE)
-      .map((d) => d.path);
+      .map((d) => ({ path: d.path, score: d.score }));
   }
   // Fallback path used by older CLIs (no matchedDocs at all) AND by cache hits (empty
   // matchedDocs but `**Sources**:` block present in content). Per-entry score is not
   // recoverable here, so paths flow through without per-entry filtering — acceptable
   // because the cached/synthesised response was already deemed answer-worthy upstream.
-  return parseSourcesFromContent(content);
+  return parseSourcesFromContent(content).map((path) => ({ path }));
 }
 
-function renderSummary(paths: string[], args: BuildRecallOutputArgs): string {
+function renderSummary(
+  matches: Array<{ path: string; score?: number }>,
+  args: BuildRecallOutputArgs,
+): string {
   const resolve = args.getAge ?? resolveContextTreeAge;
-  const entries: VisibleSummaryEntry[] = paths.map((path) => {
+  const entries: VisibleSummaryEntry[] = matches.map(({ path, score }) => {
     const age = resolve(args.cwd, path);
-    return age ? { path, age } : { path };
+    const base: VisibleSummaryEntry = age ? { path, age } : { path };
+    return typeof score === "number" ? { ...base, score } : base;
   });
   const summaryOptions = args.now ? { now: args.now } : {};
   return buildVisibleSummary(entries, summaryOptions);

@@ -1,6 +1,6 @@
 {
   "name": "@byterover/claude-plugin",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Native bridge between ByteRover context engine and Claude Code — enriches Claude's auto-memory with BM25-ranked knowledge from brv context tree",
   "type": "module",
   "bin": {
