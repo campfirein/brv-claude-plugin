@@ -184,7 +184,9 @@ describe("buildRecallOutput", () => {
 
     assertDefined(out);
     expect(out.systemMessage).toBe(
-      "🧠 ByteRover returns 2 memories: strong.md (3d ago), okay.md (3d ago)",
+      "🧠 ByteRover returns 2 memories:\n" +
+        "  1. strong.md  0.92 (3d ago)\n" +
+        "  2. okay.md    0.55 (3d ago)",
     );
   });
 
@@ -230,7 +232,10 @@ describe("buildRecallOutput", () => {
     });
 
     assertDefined(out);
-    expect(out.systemMessage).toBe("🧠 ByteRover returns 1 memory: edge.md (3d ago)");
+    expect(out.systemMessage).toBe(
+      "🧠 ByteRover returns 1 memory:\n" +
+        "  1. edge.md  0.50 (3d ago)",
+    );
   });
 
   it("does not filter when matchedDocs entries have no score (graceful — older bridge)", () => {

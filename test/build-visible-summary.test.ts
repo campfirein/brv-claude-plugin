@@ -123,4 +123,107 @@ describe("buildVisibleSummary", () => {
     );
     expect(out).toBe("🧠 ByteRover returns 1 memory: clock-skew.md");
   });
+
+  // ---------------------------------------------------------------------------
+  // Scored multi-line layout — engaged when at least one entry carries a score
+  // ---------------------------------------------------------------------------
+
+  it("renders multi-line numbered layout when any entry has a score", () => {
+    const out = buildVisibleSummary(
+      [
+        { ...entry("auth/jwt-tokens.md", 3), score: 0.92 },
+        { ...entry("billing/stripe-webhooks.md", 7), score: 0.78 },
+        { ...entry("design/caching.md", 30), score: 0.55 },
+      ],
+      { now: NOW },
+    );
+    expect(out).toBe(
+      "🧠 ByteRover returns 3 memories:\n" +
+        "  1. auth/jwt-tokens.md          0.92 (3d ago)\n" +
+        "  2. billing/stripe-webhooks.md  0.78 (1w ago)\n" +
+        "  3. design/caching.md           0.55 (1mo ago)",
+    );
+  });
+
+  it("renders single scored entry numbered as 1.", () => {
+    const out = buildVisibleSummary(
+      [{ ...entry("auth/jwt-tokens.md", 3), score: 0.81 }],
+      { now: NOW },
+    );
+    expect(out).toBe(
+      "🧠 ByteRover returns 1 memory:\n" + "  1. auth/jwt-tokens.md  0.81 (3d ago)",
+    );
+  });
+
+  it("aligns the score column to the longest path within the displayed entries", () => {
+    const out = buildVisibleSummary(
+      [
+        { ...entry("a.md", 1), score: 1.0 },
+        { ...entry("a/much/longer/path/here.md", 2), score: 0.5 },
+      ],
+      { now: NOW },
+    );
+    // both paths must be padded to the longer one's length so scores form a column
+    expect(out).toBe(
+      "🧠 ByteRover returns 2 memories:\n" +
+        "  1. a.md                        1.00 (1d ago)\n" +
+        "  2. a/much/longer/path/here.md  0.50 (2d ago)",
+    );
+  });
+
+  it("formats scores at fixed two-decimal width including 0.00 and 1.00", () => {
+    const out = buildVisibleSummary(
+      [
+        { ...entry("perfect.md", 0), score: 1.0 },
+        { ...entry("zero.md", 0), score: 0.0 },
+      ],
+      { now: NOW },
+    );
+    expect(out).toBe(
+      "🧠 ByteRover returns 2 memories:\n" +
+        "  1. perfect.md  1.00 (today)\n" +
+        "  2. zero.md     0.00 (today)",
+    );
+  });
+
+  it("keeps scoreless entries aligned in the same column when at least one has a score", () => {
+    const out = buildVisibleSummary(
+      [
+        { ...entry("with-score.md", 1), score: 0.83 },
+        entry("no-score.md", 2), // no score
+      ],
+      { now: NOW },
+    );
+    // scoreless rows render four spaces in the score slot to preserve column alignment
+    expect(out).toBe(
+      "🧠 ByteRover returns 2 memories:\n" +
+        "  1. with-score.md  0.83 (1d ago)\n" +
+        "  2. no-score.md         (2d ago)",
+    );
+  });
+
+  it("omits the age suffix in the scored layout when age is undefined", () => {
+    const out = buildVisibleSummary(
+      [
+        { path: "no-age.md", score: 0.77 },
+        { ...entry("with-age.md", 5), score: 0.61 },
+      ],
+      { now: NOW },
+    );
+    expect(out).toBe(
+      "🧠 ByteRover returns 2 memories:\n" +
+        "  1. no-age.md    0.77\n" +
+        "  2. with-age.md  0.61 (5d ago)",
+    );
+  });
+
+  it("falls back to legacy single-line layout when no entry has a score", () => {
+    const out = buildVisibleSummary(
+      [entry("a.md", 1), entry("b.md", 2)],
+      { now: NOW },
+    );
+    expect(out).toBe(
+      "🧠 ByteRover returns 2 memories: a.md (1d ago), b.md (2d ago)",
+    );
+  });
 });
